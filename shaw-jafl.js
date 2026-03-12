@@ -4,10 +4,13 @@
 // unshifted
 const shaw_n = {a:'𐑪',b:'𐑣',c:'𐑞',d:'𐑩',e:'𐑰',f:'𐑦',g:'𐑳',h:'𐑤',i:'𐑛',j:'𐑮',k:'𐑕',l:'𐑯',m:'𐑚',n:'𐑝',o:'𐑓',p:';',q:'𐑱',r:'𐑥',s:'𐑨',t:'𐑒',u:'𐑑',v:'𐑟',w:'𐑧',x:'𐑴',y:'𐑐',z:'𐑲',';':'𐑢'};
 // shifted
-const shaw_s = {a:'𐑷',b:'‹',c:'𐑔',d:'⁞𐑩',e:'𐑸',f:'𐑵',g:'𐑫',h:'·',i:'𐑡',j:'⁞𐑮',k:'𐑖',l:'𐑙',m:'—',n:'›',o:'–',p:':',q:'𐑬',r:'𐑿',s:'𐑭',t:'𐑜',u:'𐑗',v:'𐑠',w:'𐑹',x:'☆',y:'⸰',z:'𐑶',';':'𐑘'};
+const shaw_s = {a:'𐑷',b:'‹',c:'𐑔',d:'𐑩',e:'𐑸',f:'𐑵',g:'𐑫',h:'·',i:'𐑡',j:'𐑮',k:'𐑖',l:'𐑙',m:'—',n:'›',o:'–',p:':',q:'𐑬',r:'𐑿',s:'𐑭',t:'𐑜',u:'𐑗',v:'𐑠',w:'𐑹',x:'☆',y:'⸰',z:'𐑶',';':'𐑘'};
 
 // pressing j (𐑮) after one of these fuses into a compound
 const shaw_jcomp = {'𐑩':'𐑼','𐑭':'𐑸','𐑷':'𐑹','𐑳':'𐑻','𐑱':'𐑺','𐑾':'𐑽'};
+
+// ☆ (Shift+X): decompose last char back into its parts
+const shaw_decomp = {'𐑼':'𐑩𐑮','𐑸':'𐑭𐑮','𐑹':'𐑷𐑮','𐑻':'𐑳𐑮','𐑺':'𐑱𐑮','𐑽':'𐑾𐑮','𐑾':'𐑦𐑩','𐑿':'𐑘𐑵','«':'‹‹','»':'››'};
 
 let shaw_on = false, shaw_prev = '';
 
@@ -30,10 +33,19 @@ function shaw_ins(el, ch) {
   el.dispatchEvent(new Event('input', {bubbles: true}));
 }
 
-function shaw_del(el, n) {
-  const s = Math.max(0, el.selectionStart - n);
-  el.value = el.value.slice(0, s) + el.value.slice(el.selectionStart);
-  el.selectionStart = el.selectionEnd = s;
+function shaw_del(el, chars) {
+  // Count backwards by Unicode codepoints (Shavian chars are surrogate pairs = 2 code units each)
+  let pos = el.selectionStart;
+  for (let i = 0; i < chars; i++) {
+    if (pos >= 2 && el.value.charCodeAt(pos - 2) >= 0xD800 && el.value.charCodeAt(pos - 2) <= 0xDBFF) {
+      pos -= 2; // surrogate pair
+    } else {
+      pos -= 1;
+    }
+  }
+  pos = Math.max(0, pos);
+  el.value = el.value.slice(0, pos) + el.value.slice(el.selectionStart);
+  el.selectionStart = el.selectionEnd = pos;
   el.dispatchEvent(new Event('input', {bubbles: true}));
 }
 
@@ -72,6 +84,13 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  // shift+d or shift+j: insert the bare letter but reset prev to break composition
+  if (e.shiftKey && (k === 'd' || k === 'j')) {
+    shaw_ins(el, ch);
+    shaw_prev = '';
+    return;
+  }
+
   // shift+b (‹): if previous was ‹, fuse → «
   if (e.shiftKey && k === 'b' && shaw_prev === '‹') {
     shaw_del(el, 1);
@@ -88,6 +107,19 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  // shift+x (☆): decompose last char into its component parts
+  if (e.shiftKey && k === 'x') {
+    const parts = shaw_decomp[shaw_prev];
+    if (parts) {
+      shaw_del(el, 1);
+      shaw_ins(el, parts);
+      const cp = [...parts];
+      shaw_prev = cp[cp.length - 1];
+    }
+    // if last char isn't a compound, ☆ does nothing
+    return;
+  }
+
   // shift+f (𐑵): if previous was 𐑘 (semicolon unshifted), fuse → 𐑿
   if (e.shiftKey && k === 'f' && shaw_prev === '𐑘') {
     shaw_del(el, 1);
@@ -97,5 +129,6 @@ document.addEventListener('keydown', e => {
   }
 
   shaw_ins(el, ch);
-  shaw_prev = ch;
+  const cp = [...ch];
+  shaw_prev = cp[cp.length - 1];
 }, true);
