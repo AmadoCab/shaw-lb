@@ -1,134 +1,101 @@
 // Shaw JAFL – Shavian keyboard  (Ctrl+Alt+S to toggle)
 // Layout from: english_shavian_jafl.kmp  https://www.shavian.info/keyboards/
 
-// unshifted
-const shaw_n = {a:'𐑪',b:'𐑣',c:'𐑞',d:'𐑩',e:'𐑰',f:'𐑦',g:'𐑳',h:'𐑤',i:'𐑛',j:'𐑮',k:'𐑕',l:'𐑯',m:'𐑚',n:'𐑝',o:'𐑓',p:';',q:'𐑱',r:'𐑥',s:'𐑨',t:'𐑒',u:'𐑑',v:'𐑟',w:'𐑧',x:'𐑴',y:'𐑐',z:'𐑲',';':'𐑢'};
-// shifted
-const shaw_s = {a:'𐑷',b:'‹',c:'𐑔',d:'𐑩',e:'𐑸',f:'𐑵',g:'𐑫',h:'·',i:'𐑡',j:'𐑮',k:'𐑖',l:'𐑙',m:'—',n:'›',o:'–',p:':',q:'𐑬',r:'𐑿',s:'𐑭',t:'𐑜',u:'𐑗',v:'𐑠',w:'𐑹',x:'☆',y:'⸰',z:'𐑶',';':'𐑘'};
+(_ => {
+  // unshifted / shifted key maps
+  const shaw_n = {a:'𐑪',b:'𐑣',c:'𐑞',d:'𐑩',e:'𐑰',f:'𐑦',g:'𐑳',h:'𐑤',i:'𐑛',j:'𐑮',k:'𐑕',l:'𐑯',m:'𐑚',n:'𐑝',o:'𐑓',p:';',q:'𐑱',r:'𐑥',s:'𐑨',t:'𐑒',u:'𐑑',v:'𐑟',w:'𐑧',x:'𐑴',y:'𐑐',z:'𐑲',';':'𐑢'}
+  const shaw_s = {a:'𐑷',b:'‹',c:'𐑔',d:'𐑩',e:'𐑸',f:'𐑵',g:'𐑫',h:'·',i:'𐑡',j:'𐑮',k:'𐑖',l:'𐑙',m:'—',n:'›',o:'–',p:':',q:'𐑬',r:'𐑿',s:'𐑭',t:'𐑜',u:'𐑗',v:'𐑠',w:'𐑹',x:'☆',y:'⸰',z:'𐑶',';':'𐑘'}
 
-// pressing j (𐑮) after one of these fuses into a compound
-const shaw_jcomp = {'𐑩':'𐑼','𐑭':'𐑸','𐑷':'𐑹','𐑳':'𐑻','𐑱':'𐑺','𐑾':'𐑽'};
+  // j (𐑮) after these fuses into a compound vowel
+  const shaw_jcomp = {'𐑩':'𐑼','𐑭':'𐑸','𐑷':'𐑹','𐑳':'𐑻','𐑱':'𐑺','𐑾':'𐑽'}
 
-// ☆ (Shift+X): decompose last char back into its parts
-const shaw_decomp = {'𐑼':'𐑩𐑮','𐑸':'𐑭𐑮','𐑹':'𐑷𐑮','𐑻':'𐑳𐑮','𐑺':'𐑱𐑮','𐑽':'𐑾𐑮','𐑾':'𐑦𐑩','𐑿':'𐑘𐑵','«':'‹‹','»':'››'};
+  // ☆ (Shift+X): decompose last compound char back into its parts
+  const shaw_decomp = {'𐑼':'𐑩𐑮','𐑸':'𐑭𐑮','𐑹':'𐑷𐑮','𐑻':'𐑳𐑮','𐑺':'𐑱𐑮','𐑽':'𐑾𐑮','𐑾':'𐑦𐑩','𐑿':'𐑘𐑵','«':'‹‹','»':'››'}
 
-let shaw_on = false, shaw_prev = '';
+  let on = false, prev = ''
 
-const shaw_ind = document.createElement('div');
-shaw_ind.style = 'position:fixed;bottom:8px;right:12px;z-index:2147483647;padding:4px 8px;border-radius:5px;font:bold 13px monospace;cursor:pointer;opacity:.85';
-document.body.appendChild(shaw_ind);
+  // indicator badge
+  const ind = document.createElement('div')
+  ind.style = 'position:fixed;bottom:8px;right:12px;z-index:2147483647;padding:4px 8px;border-radius:5px;font:bold 13px monospace;cursor:pointer;opacity:.85'
+  document.body.appendChild(ind)
 
-function shaw_update() {
-  shaw_ind.textContent = shaw_on ? '𐑖𐑱𐑝𐑾𐑯 ✓' : '𐑖𐑱𐑝𐑾𐑯';
-  shaw_ind.style.background = shaw_on ? '#2a6e3f' : '#444';
-  shaw_ind.style.color = shaw_on ? '#cfc' : '#aaa';
-}
-shaw_ind.onclick = () => { shaw_on = !shaw_on; shaw_prev = ''; shaw_update(); };
-shaw_update();
+  const upd = () => {
+    ind.textContent = on ? '𐑖𐑱𐑝𐑾𐑯 ✓' : '𐑖𐑱𐑝𐑾𐑯'
+    ind.style.background = on ? '#2a6e3f' : '#444'
+    ind.style.color = on ? '#cfc' : '#aaa'
+  }
+  ind.onclick = () => { on = !on; prev = ''; upd() }
+  upd()
 
-function shaw_ins(el, ch) {
-  const s = el.selectionStart, end = el.selectionEnd;
-  el.value = el.value.slice(0, s) + ch + el.value.slice(end);
-  el.selectionStart = el.selectionEnd = s + ch.length;
-  el.dispatchEvent(new Event('input', {bubbles: true}));
-}
+  // insert string at cursor, replacing any selection
+  const ins = (el, ch) => {
+    const s = el.selectionStart
+    el.value = el.value.slice(0, s) + ch + el.value.slice(el.selectionEnd)
+    el.selectionStart = el.selectionEnd = s + ch.length
+    el.dispatchEvent(new Event('input', {bubbles: true}))
+  }
 
-function shaw_del(el, chars) {
-  // Count backwards by Unicode codepoints (Shavian chars are surrogate pairs = 2 code units each)
-  let pos = el.selectionStart;
-  for (let i = 0; i < chars; i++) {
-    if (pos >= 2 && el.value.charCodeAt(pos - 2) >= 0xD800 && el.value.charCodeAt(pos - 2) <= 0xDBFF) {
-      pos -= 2; // surrogate pair
-    } else {
-      pos -= 1;
+  // delete n codepoints before cursor (handles Shavian surrogate pairs)
+  const del = (el, n) => {
+    let pos = el.selectionStart
+    while (n-- > 0) {
+      const hi = el.value.charCodeAt(pos - 2)
+      pos -= (hi >= 0xD800 && hi <= 0xDBFF) ? 2 : 1
     }
-  }
-  pos = Math.max(0, pos);
-  el.value = el.value.slice(0, pos) + el.value.slice(el.selectionStart);
-  el.selectionStart = el.selectionEnd = pos;
-  el.dispatchEvent(new Event('input', {bubbles: true}));
-}
-
-document.addEventListener('keydown', e => {
-  if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 's') {
-    e.preventDefault(); shaw_on = !shaw_on; shaw_prev = ''; shaw_update(); return;
-  }
-  if (!shaw_on) return;
-  const el = e.target;
-  if (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT') return;
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (['Escape','Tab','Backspace','Delete','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
-    shaw_prev = ''; return;
+    el.value = el.value.slice(0, Math.max(0, pos)) + el.value.slice(el.selectionStart)
+    el.selectionStart = el.selectionEnd = Math.max(0, pos)
+    el.dispatchEvent(new Event('input', {bubbles: true}))
   }
 
-  const k = e.key.toLowerCase();
-  const ch = e.shiftKey ? shaw_s[k] : shaw_n[k];
-  if (ch === undefined) { if (e.key.length === 1) shaw_prev = ''; return; }
-
-  e.preventDefault();
-
-  // j unshifted (𐑮): fuse with eligible previous char into compound
-  if (!e.shiftKey && k === 'j' && shaw_jcomp[shaw_prev]) {
-    shaw_del(el, 1);
-    const fused = shaw_jcomp[shaw_prev];
-    shaw_ins(el, fused);
-    shaw_prev = fused;
-    return;
-  }
-
-  // d unshifted (𐑩): if previous was 𐑦 (f), fuse → 𐑾
-  if (!e.shiftKey && k === 'd' && shaw_prev === '𐑦') {
-    shaw_del(el, 1);
-    shaw_ins(el, '𐑾');
-    shaw_prev = '𐑾';
-    return;
-  }
-
-  // shift+d or shift+j: insert the bare letter but reset prev to break composition
-  if (e.shiftKey && (k === 'd' || k === 'j')) {
-    shaw_ins(el, ch);
-    shaw_prev = '';
-    return;
-  }
-
-  // shift+b (‹): if previous was ‹, fuse → «
-  if (e.shiftKey && k === 'b' && shaw_prev === '‹') {
-    shaw_del(el, 1);
-    shaw_ins(el, '«');
-    shaw_prev = '';
-    return;
-  }
-
-  // shift+n (›): if previous was ›, fuse → »
-  if (e.shiftKey && k === 'n' && shaw_prev === '›') {
-    shaw_del(el, 1);
-    shaw_ins(el, '»');
-    shaw_prev = '';
-    return;
-  }
-
-  // shift+x (☆): decompose last char into its component parts
-  if (e.shiftKey && k === 'x') {
-    const parts = shaw_decomp[shaw_prev];
-    if (parts) {
-      shaw_del(el, 1);
-      shaw_ins(el, parts);
-      const cp = [...parts];
-      shaw_prev = cp[cp.length - 1];
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 's') {
+      e.preventDefault(); on = !on; prev = ''; upd(); return
     }
-    // if last char isn't a compound, ☆ does nothing
-    return;
-  }
+    if (!on) return
+    const el = e.target
+    if (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT') return
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (['Escape','Tab','Backspace','Delete','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+      prev = ''; return
+    }
 
-  // shift+f (𐑵): if previous was 𐑘 (semicolon unshifted), fuse → 𐑿
-  if (e.shiftKey && k === 'f' && shaw_prev === '𐑘') {
-    shaw_del(el, 1);
-    shaw_ins(el, '𐑿');
-    shaw_prev = '';
-    return;
-  }
+    const k = e.key.toLowerCase()
+    const ch = e.shiftKey ? shaw_s[k] : shaw_n[k]
+    if (ch === undefined) { if (e.key.length === 1) prev = ''; return }
 
-  shaw_ins(el, ch);
-  const cp = [...ch];
-  shaw_prev = cp[cp.length - 1];
-}, true);
+    e.preventDefault()
+
+    // Shift+X (☆): decompose last compound char into parts
+    if (e.shiftKey && k === 'x') {
+      const parts = shaw_decomp[prev]
+      if (parts) { del(el, 1); ins(el, parts); prev = [...parts].pop() }
+      return
+    }
+
+    // j (𐑮) after eligible vowel: fuse into compound
+    if (!e.shiftKey && k === 'j' && shaw_jcomp[prev]) {
+      const fused = shaw_jcomp[prev]; del(el, 1); ins(el, fused); prev = fused; return
+    }
+
+    // d (𐑩) after 𐑦: fuse into 𐑾
+    if (!e.shiftKey && k === 'd' && prev === '𐑦') {
+      del(el, 1); ins(el, '𐑾'); prev = '𐑾'; return
+    }
+
+    // Shift+D / Shift+J: insert bare letter, break composition chain
+    if (e.shiftKey && (k === 'd' || k === 'j')) {
+      ins(el, ch); prev = ''; return
+    }
+
+    // Shift+B (‹‹ -> «) and Shift+N (›› -> »)
+    if (e.shiftKey && k === 'b' && prev === '‹') { del(el, 1); ins(el, '«'); prev = ''; return }
+    if (e.shiftKey && k === 'n' && prev === '›') { del(el, 1); ins(el, '»'); prev = ''; return }
+
+    // Shift+F (𐑵) after 𐑘: fuse into 𐑿
+    if (e.shiftKey && k === 'f' && prev === '𐑘') { del(el, 1); ins(el, '𐑿'); prev = ''; return }
+
+    // default: insert character, track last codepoint for composition
+    ins(el, ch)
+    prev = [...ch].pop()
+  }, true)
+})()
